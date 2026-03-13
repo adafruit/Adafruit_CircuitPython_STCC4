@@ -79,7 +79,7 @@ class STCC4:
     """Driver for the STCC4 CO2 sensor with integrated SHT41.
 
     :param ~busio.I2C i2c_bus: The I2C bus the STCC4 is connected to.
-    :param int address: The I2C device address. Defaults to :const:`0x64`.
+    :param int address: The I2C device address. Defaults to `0x64`.
     """
 
     def __init__(self, i2c_bus: I2C, address: int = _STCC4_DEFAULT_ADDR) -> None:
@@ -173,11 +173,11 @@ class STCC4:
         """Temperature in degrees Celsius.
 
         .. note::
-            Call :attr:`CO2` first to trigger a fresh measurement, or use
-            :meth:`measure_single_shot` / :meth:`continuous_measurement`.
+            Call `CO2` first to trigger a fresh measurement, or use
+            `measure_single_shot` / `continuous_measurement`.
             This property returns the value from the most recent reading.
 
-        :return: Temperature in °C.
+        :return: Temperature in Celsius.
         :rtype: float
         """
         return self._temperature
@@ -187,8 +187,8 @@ class STCC4:
         """Relative humidity as a percentage.
 
         .. note::
-            Call :attr:`CO2` first to trigger a fresh measurement, or use
-            :meth:`measure_single_shot` / :meth:`continuous_measurement`.
+            Call `CO2` first to trigger a fresh measurement, or use
+            `measure_single_shot` / `continuous_measurement`.
             This property returns the value from the most recent reading.
 
         :return: Relative humidity in %.
@@ -211,8 +211,8 @@ class STCC4:
     def measure_single_shot(self) -> None:
         """Trigger a single-shot measurement and wait for it to complete.
 
-        After calling this method, read :attr:`CO2`, :attr:`temperature`,
-        and :attr:`relative_humidity` to retrieve the results.
+        After calling this method, read `CO2`, `temperature`,
+        and `relative_humidity` to retrieve the results.
         """
         self._write_command(_MEASURE_SINGLE_SHOT)
         time.sleep(0.5)  # Single shot measurement time
