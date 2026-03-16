@@ -64,10 +64,15 @@ _GET_PRODUCT_ID = const(0x365B)
 
 # Status bit masks
 STATUS_VOLTAGE_ERROR = const(0x0001)
-STATUS_DEBUG_MASK = const(0x000E)
+"""Supply voltage error flag."""
+STATUS_DEBUG = const(0x000E)
+"""Debug flags mask."""
 STATUS_SHT_NOT_CONNECTED = const(0x0010)
-STATUS_MEMORY_ERROR_MASK = const(0x0060)
+"""SHT sensor not connected flag."""
+STATUS_MEMORY_ERROR = const(0x0060)
+"""Memory error flags mask."""
 STATUS_TESTING_MODE = const(0x4000)
+"""Testing mode active flag."""
 
 
 class STCC4:
