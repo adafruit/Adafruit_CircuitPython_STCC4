@@ -43,7 +43,7 @@ __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_STCC4.git"
 
 _STCC4_DEFAULT_ADDR = const(0x64)
-_STCC4_PRODUCT_ID = const(0x0901018A)
+_STCC4_PRODUCT_ID = 0x0901018A
 
 _START_CONTINUOUS = const(0x218B)
 _STOP_CONTINUOUS = const(0x3F86)
