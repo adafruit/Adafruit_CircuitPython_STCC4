@@ -76,6 +76,7 @@ class STCC4:
     :param ~busio.I2C i2c_bus: The I2C bus the STCC4 is connected to.
     :param int address: The I2C device address. Defaults to :const:`0x64`.
     """
+
     def __init__(self, i2c_bus: I2C, address: int = _STCC4_DEFAULT_ADDR) -> None:
         self.i2c_device = I2CDevice(i2c_bus, address)
 
