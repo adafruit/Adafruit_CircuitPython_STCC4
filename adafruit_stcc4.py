@@ -81,11 +81,11 @@ class STCC4:
                 f"Failed to find STCC4 - expected product ID {_STCC4_PRODUCT_ID}, " f"got 0x{pid}"
             )
 
-        self._co2: int = 0
-        self._temperature: float = 0.0
-        self._humidity: float = 0.0
-        self._status: int = 0
-        self._continuous: bool = False
+        self._co2 = 0
+        self._temperature = 0.0
+        self._humidity = 0.0
+        self._status = 0
+        self._continuous = False
 
     @staticmethod
     def _crc8(data: bytes) -> int:
