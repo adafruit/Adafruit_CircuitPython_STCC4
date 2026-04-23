@@ -107,7 +107,7 @@ class STCC4:
                 if crc & 0x80:
                     crc = (crc << 1) ^ 0x31
                 else:
-                    crc = crc << 1
+                    crc <<= 1
                 crc &= 0xFF
         return crc
 
