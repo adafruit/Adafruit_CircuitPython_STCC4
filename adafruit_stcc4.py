@@ -90,7 +90,7 @@ class STCC4:
         if pid != _STCC4_PRODUCT_ID:
             raise RuntimeError(
                 f"Failed to find STCC4 - expected product ID 0x{_STCC4_PRODUCT_ID:08X}, "
-                f"got 0x{pid:08X}"
+                + f"got 0x{pid:08X}"
             )
 
         self._co2 = 0
