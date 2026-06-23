@@ -89,7 +89,8 @@ class STCC4:
         pid = self.product_id
         if pid != _STCC4_PRODUCT_ID:
             raise RuntimeError(
-                f"Failed to find STCC4 - expected product ID {_STCC4_PRODUCT_ID}, got 0x{pid}"
+                f"Failed to find STCC4 - expected product ID 0x{_STCC4_PRODUCT_ID:08X}, "
+                f"got 0x{pid:08X}"
             )
 
         self._co2 = 0
@@ -132,11 +133,41 @@ class STCC4:
         return reply
 
     def _read_words(self, command: int, word_count: int) -> Tuple[int, ...]:
+        """
+        Send command to sensor and read word_count words back
+
+        See _read_words_after_wait for when a subsequent read needs to happen after
+        waiting a delay
+        """
         raw = self._read_command(command, word_count)
         words = []
         for i in range(word_count):
             offset = i * 3
             words.append((raw[offset] << 8) | raw[offset + 1])
+        return tuple(words)
+
+    def _read_words_after_wait(self, command: int, word_count: int) -> Tuple[int, ...]:
+        """
+        Read ``word_count`` 16-bit words from the sensor *without* re-sending
+        a command first.
+
+        Used by commands that need a delay between the command write and the
+        result read (e.g. :meth:`self_test`, :meth:`forced_recalibration`). The
+        caller must already have written the command and slept for the required
+        execution time. Using :meth:`_read_words` here would be wrong, because it
+        re-issues the command via ``write_then_readinto`` before reading.
+        """
+        reply = bytearray(word_count * 3)
+        with self.i2c_device as i2c:
+            i2c.readinto(reply)
+        words = []
+        for i in range(word_count):
+            offset = i * 3
+            if self._crc8(reply[offset : offset + 2]) != reply[offset + 2]:
+                raise RuntimeError(
+                    f"CRC mismatch at word {i} in response to command 0x{command:04X}"
+                )
+            words.append((reply[offset] << 8) | reply[offset + 1])
         return tuple(words)
 
     def _write_command_with_arg(self, command: int, arg: int) -> None:
@@ -147,10 +178,21 @@ class STCC4:
             i2c.write(buf)
 
     def _read_measurement(self) -> None:
-        words = self._read_words(_READ_MEASUREMENT, 4)
+        # Continuous mode emits ~1 sample/sec and NACKs read_measurement when no
+        # fresh data is ready (there's no data-ready command on the STCC4), which
+        # shows up as OSError/EIO. Retry briefly before giving up.
+        words = None
+        for _ in range(15):  # ~1.5 s ceiling, covers one missed interval
+            try:
+                words = self._read_words(_READ_MEASUREMENT, 4)
+                break
+            except OSError:
+                time.sleep(0.1)
+        if words is None:
+            raise RuntimeError("STCC4 measurement not ready")
         self._co2 = words[0]
-        self._temperature = words[1] * 175.0 / 65536.0 - 45.0
-        self._humidity = words[2] * 125.0 / 65536.0 - 6.0
+        self._temperature = words[1] * 175.0 / 65535.0 - 45.0
+        self._humidity = words[2] * 125.0 / 65535.0 - 6.0
         self._status = words[3]
 
     @property
@@ -242,12 +284,18 @@ class STCC4:
 
         :param int pressure_hpa: Ambient pressure in hPa (e.g. 1013 for sea level).
         """
-        self._write_command_with_arg(_SET_PRESSURE_COMPENSATION, pressure_hpa)
+        # STCC4 uses Pa/2 (e.g. 101300/2 = 50650) for its parameter per datasheet
+        # Adafruit uses hPa (Pa = hPa * 100).  hPa * 100 / 2 = hPa * 50
+        self._write_command_with_arg(_SET_PRESSURE_COMPENSATION, pressure_hpa * 50)
 
     def rht_compensation(self, rht_value: int) -> None:
         """External RH/T compensation value.
 
         :param int rht_value: 16-bit RH/T compensation value per datasheet.
+        .. warning::
+            Only for STCC4 boards **without** a directly-connected SHT4x. On Adafruit's
+            STCC4 (which has an onboard SHT4x) the sensor handles RH/T compensation
+            itself and this method should not be used.
         """
         self._write_command_with_arg(_SET_RHT_COMPENSATION, rht_value)
 
@@ -268,9 +316,11 @@ class STCC4:
         :rtype: int
         """
         self._write_command_with_arg(_FORCED_RECALIBRATION, reference_co2)
-        time.sleep(0.5)
-        words = self._read_words(_FORCED_RECALIBRATION, 1)
-        return words[0]
+        time.sleep(0.090)
+        raw = self._read_words_after_wait(_FORCED_RECALIBRATION, 1)[0]
+        if raw == 0xFFFF:  # Error Condition
+            return raw
+        return raw - 0x8000  # correction = return value - 32768 per datasheet
 
     @property
     def product_id(self) -> int:
@@ -281,6 +331,17 @@ class STCC4:
         """
         words = self._read_words(_GET_PRODUCT_ID, 2)
         return (words[0] << 16) | words[1]
+
+    @property
+    def serial_number(self) -> bytearray:
+        """64-bit unique serial number for this sensor
+
+        :return: Serial Number
+        :rtype: bytearray
+        """
+        words = self._read_words(_GET_PRODUCT_ID, 6)
+        # Skip the first two words (product id); serial number is the next four words
+        return bytearray(struct.pack(">HHHH", *words[2:6]))
 
     def reset(self) -> None:
         """Perform a soft reset of the sensor."""
@@ -302,8 +363,7 @@ class STCC4:
         """
         self._write_command(_SELF_TEST)
         time.sleep(0.36)
-        words = self._read_words(_SELF_TEST, 1)
-        return words[0]
+        return self._read_words_after_wait(_SELF_TEST, 1)[0]
 
     @property
     def sleep_mode(self) -> None:
