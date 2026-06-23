@@ -292,6 +292,7 @@ class STCC4:
         """External RH/T compensation value.
 
         :param int rht_value: 16-bit RH/T compensation value per datasheet.
+
         .. warning::
             Only for STCC4 boards **without** a directly-connected SHT4x. On Adafruit's
             STCC4 (which has an onboard SHT4x) the sensor handles RH/T compensation
