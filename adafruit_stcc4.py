@@ -273,11 +273,11 @@ class STCC4:
     def continuous_measurement(self, value: bool) -> None:
         if value:
             self._write_command(_START_CONTINUOUS)
+            time.sleep(1)  # Wait for first measurement
         else:
             self._write_command(_STOP_CONTINUOUS)
+            time.sleep(1.2)  # Datasheet says wait 1200ms
         self._continuous = value
-        if value:
-            time.sleep(1)  # Wait for first measurement
 
     def pressure_compensation(self, pressure_hpa: int) -> None:
         """Ambient pressure for CO2 compensation.
@@ -315,6 +315,15 @@ class STCC4:
         :param int reference_co2: Known CO2 concentration in ppm.
         :return: FRC correction value. ``0xFFFF`` indicates failure.
         :rtype: int
+
+        .. warning::
+            The sensor must be operated for at least 40 s in continuous mode
+            (or held in idle after single-shot operation), then stopped with a
+            full ``stop`` execution-time wait, before calling this. Calling it
+            on an unconditioned sensor returns ``0xFFFF``.  See the datasheet
+            for more specific requirements
+
+        .. seealso:: :meth:\continuous_measurement
         """
         self._write_command_with_arg(_FORCED_RECALIBRATION, reference_co2)
         time.sleep(0.090)
