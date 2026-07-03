@@ -288,17 +288,27 @@ class STCC4:
         # Adafruit uses hPa (Pa = hPa * 100).  hPa * 100 / 2 = hPa * 50
         self._write_command_with_arg(_SET_PRESSURE_COMPENSATION, pressure_hpa * 50)
 
-    def rht_compensation(self, rht_value: int) -> None:
-        """External RH/T compensation value.
+    def rht_compensation(self, temperature: float, relative_humidity: float) -> None:
+        """Provide external RH/T compensation values for CO2 compensation.
 
-        :param int rht_value: 16-bit RH/T compensation value per datasheet.
+        :param float temperature: Ambient temperature in °C.
+        :param float relative_humidity: Ambient relative humidity in %.
 
         .. warning::
             Only for STCC4 boards **without** a directly-connected SHT4x. On Adafruit's
             STCC4 (which has an onboard SHT4x) the sensor handles RH/T compensation
             itself and this method should not be used.
+
         """
-        self._write_command_with_arg(_SET_RHT_COMPENSATION, rht_value)
+        raw_t = int(round((temperature + 45.0) * 65535.0 / 175.0)) & 0xFFFF
+        raw_rh = int(round((relative_humidity + 6.0) * 65535.0 / 125.0)) & 0xFFFF
+        # two words, each followed by its own CRC
+        args = struct.pack(">H", raw_t) + bytes([self._crc8(struct.pack(">H", raw_t))])
+        args += struct.pack(">H", raw_rh) + bytes([self._crc8(struct.pack(">H", raw_rh))])
+        buf = struct.pack(">H", _SET_RHT_COMPENSATION) + args
+        # The only multiple arg cmd so directly code write (vs _write_command_with arg)
+        with self.i2c_device as i2c:
+            i2c.write(buf)
 
     def perform_conditioning(self) -> None:
         """Run sensor conditioning to improve initial CO2 accuracy.
